@@ -1,0 +1,56 @@
+name: Build TouchBridge IPA
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [codex/touchbridge]
+    paths:
+      - '.github/workflows/touchbridge-ipa.yml'
+      - 'TouchBridge/**'
+      - 'WebDriverAgentLib/**'
+      - 'WebDriverAgentRunner/**'
+      - 'WebDriverAgent.xcodeproj/**'
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: macos-15
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: '16.4'
+      - name: Prepare bundle identifier
+        run: python3 TouchBridge/package_ipa.py prepare
+      - name: Build arm64 device runner
+        run: |
+          set -o pipefail
+          xcodebuild build-for-testing \
+            -project WebDriverAgent.xcodeproj \
+            -scheme WebDriverAgentRunner \
+            -configuration Debug \
+            -sdk iphoneos \
+            -destination 'generic/platform=iOS' \
+            -derivedDataPath build/TouchBridge \
+            CODE_SIGNING_ALLOWED=NO ARCHS=arm64 \
+            2>&1 | tee build.log
+      - name: Package IPA
+        run: python3 TouchBridge/package_ipa.py package
+      - uses: actions/upload-artifact@v4
+        with:
+          name: TouchBridge-unsigned-ipa
+          path: |
+            dist/TouchBridge.ipa
+            dist/SHA256SUMS.txt
+            dist/build-info.json
+            LICENSE
+            TouchBridge/README.zh-CN.md
+          if-no-files-found: error
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: TouchBridge-build-log
+          path: build.log

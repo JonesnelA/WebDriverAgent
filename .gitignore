@@ -54,3 +54,8 @@ WebDriverAgentRunner-Runner.app/
 
 # Ruby
 Gemfile.lock
+
+# TouchBridge generated artifacts
+__pycache__/
+dist/
+build.log
