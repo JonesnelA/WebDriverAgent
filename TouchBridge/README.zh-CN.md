@@ -23,6 +23,8 @@
 
 `TouchBridge-unsigned-ipa` 构建产物包含 IPA、SHA256 和编译元信息。按照上游 `Scripts/ci/build-real.sh` 的方式排除最外层 Frameworks，使 iOS 17+ 从设备 DDI 加载 XCTest；保留插件里的 WebDriverAgentLib。
 
+IPA 打包还会排除所有 `.dSYM` 调试符号目录和 `.bcsymbolmap` 文件，避免签名工具将调试符号中的 DWARF 文件误认为可安装的 iOS 程序。
+
 ```powershell
 gh workflow run touchbridge-ipa.yml --repo JonesnelA/WebDriverAgent --ref codex/touchbridge
 gh run list --repo JonesnelA/WebDriverAgent --workflow touchbridge-ipa.yml

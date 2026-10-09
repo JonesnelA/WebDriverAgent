@@ -12,6 +12,17 @@ ROOT = Path(__file__).resolve().parents[1]
 BUNDLE = "com.jonesnela.TouchBridge"
 
 
+def write_ipa(app, ipa):
+    """Include runtime files only; signing tools must never scan debug binaries."""
+    with zipfile.ZipFile(ipa, "w", zipfile.ZIP_DEFLATED) as archive:
+        for path in sorted(app.rglob("*")):
+            relative = path.relative_to(app.parent)
+            if any(part.endswith((".dSYM", ".bcsymbolmap")) for part in relative.parts):
+                continue
+            if path.is_file():
+                archive.write(path, "Payload/" + relative.as_posix())
+
+
 def prepare():
     project = ROOT / "WebDriverAgent.xcodeproj/project.pbxproj"
     text = project.read_text(encoding="utf-8")
@@ -42,10 +53,7 @@ def package():
     dist = ROOT / "dist"
     dist.mkdir(exist_ok=True)
     ipa = dist / "TouchBridge.ipa"
-    with zipfile.ZipFile(ipa, "w", zipfile.ZIP_DEFLATED) as archive:
-        for path in sorted(app.rglob("*")):
-            if path.is_file():
-                archive.write(path, "Payload/" + path.relative_to(app.parent).as_posix())
+    write_ipa(app, ipa)
     digest = hashlib.sha256(ipa.read_bytes()).hexdigest()
     (dist / "SHA256SUMS.txt").write_text(f"{digest}  TouchBridge.ipa\n", encoding="utf-8")
     metadata = {
