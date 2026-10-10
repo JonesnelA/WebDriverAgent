@@ -24,10 +24,14 @@ fn point(x: f64, y: f64, orientation: u32) -> Result<(u16,u16), &'static str> {
     Ok(((x*65535.0).round() as u16,(y*65535.0).round() as u16))
 }
 
-async fn release(state: &mut State) {
+async fn release(state: &mut State) -> bool {
     if let Some((x,y)) = state.contact.take() {
-        let _ = tokio::time::timeout(Duration::from_secs(2), state.hid.send_touchscreen(0x02,x,y,None)).await;
+        if !matches!(tokio::time::timeout(Duration::from_secs(2), state.hid.send_touchscreen(0x02,x,y,None)).await, Ok(Ok(()))) {
+            state.broken = true;
+            return false;
+        }
     }
+    true
 }
 
 async fn open(provider: Arc<TcpProvider>, media: bool) -> Result<(State,Arc<AtomicBool>,Vec<JoinHandle<()>>),String> {
@@ -115,7 +119,7 @@ pub unsafe extern "C" fn tb_touch(engine: *mut Engine, phase: u32, x:f64,y:f64,o
     let e = &*engine;
     let result = e.runtime.block_on(async {
         let mut s = e.state.lock().await;
-        if phase == 3 { release(&mut s).await; return Ok(()); }
+        if phase == 3 { return if release(&mut s).await {Ok(())} else {Err("release not acknowledged; reconnect HID")}; }
         if !e.alive.load(Ordering::Acquire) || s.broken { release(&mut s).await; return Err("HID connection ended"); }
         let p = point(x,y,orientation)?;
         match phase {

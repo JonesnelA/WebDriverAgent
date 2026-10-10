@@ -18,6 +18,10 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
         with:
           targets: aarch64-apple-ios
+      - name: Test native TCP receiver lifecycle
+        run: |
+          swiftc iPadNative/Sources/LANServer.swift iPadNative/Tests/main.swift -o "$RUNNER_TEMP/touchbridge-transport-test"
+          python3 iPadNative/Tests/test_transport.py "$RUNNER_TEMP/touchbridge-transport-test"
       - name: Test native coordinate validation
         working-directory: iPadNative/Rust
         run: cargo test --lib

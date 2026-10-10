@@ -83,6 +83,7 @@ final class AppModel: ObservableObject {
         backgroundTask = UIApplication.shared.beginBackgroundTask(withName: "finish-native-touch") { [weak self] in
             self?.stop()
         }
+        guard backgroundTask != .invalid else { stop(); return }
         note("已切到后台：仅供短时验证，系统剩余时间不足时会主动停止。")
         backgroundTimer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { [weak self] _ in
             let remaining = UIApplication.shared.backgroundTimeRemaining
