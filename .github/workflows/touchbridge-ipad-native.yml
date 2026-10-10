@@ -42,6 +42,7 @@ jobs:
           mkdir -p build/package/Payload
           cp -R build/Build/Products/Release-iphoneos/TouchBridgeNative.app build/package/Payload/
           test -s build/package/Payload/TouchBridgeNative.app/ThirdPartyNotices.txt
+          python3 -c 'import plistlib; p = plistlib.load(open("build/package/Payload/TouchBridgeNative.app/Info.plist", "rb")); assert p["CFBundleShortVersionString"] == "0.1.1" and p["CFBundleVersion"] == "2"'
           cp README.md build/package/使用说明.md
           cp ThirdPartyNotices.txt build/package/
           cp Rust/Cargo.lock build/package/
