@@ -124,7 +124,11 @@ final class LANServer {
                 let length = peer.buffer.prefix(4).reduce(0) { ($0 << 8) | Int($1) }
                 guard length > 0, length <= 65536 else { peer.socket.cancel(); return }
                 if peer.buffer.count < length+4 { break }
-                let body = peer.buffer.subdata(in: 4..<(4+length)); peer.buffer.removeFirst(4+length)
+                let start = peer.buffer.index(peer.buffer.startIndex, offsetBy: 4)
+                let end = peer.buffer.index(start, offsetBy: length)
+                let body = Data(peer.buffer[start..<end])
+                // Data.removeFirst can retain a nonzero startIndex. Normalize the next frame.
+                peer.buffer = Data(peer.buffer.dropFirst(4+length))
                 guard let message = (try? JSONSerialization.jsonObject(with: body)) as? [String: Any] else { peer.socket.cancel(); return }
                 self.handle(message, peer)
             }
