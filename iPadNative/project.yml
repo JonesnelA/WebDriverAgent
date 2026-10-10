@@ -24,8 +24,8 @@ targets:
         SWIFT_OBJC_BRIDGING_HEADER: Sources/Bridge.h
         LIBRARY_SEARCH_PATHS: '$(inherited) $(SRCROOT)/Rust/target/aarch64-apple-ios/release'
         OTHER_LDFLAGS: '$(inherited) -ltouchbridge_ipad -lresolv -lc++ -framework Security -framework CoreFoundation'
-        MARKETING_VERSION: '0.1.0'
-        CURRENT_PROJECT_VERSION: '1'
+        MARKETING_VERSION: '0.1.1'
+        CURRENT_PROJECT_VERSION: '2'
     info:
       path: Info.plist
       properties:

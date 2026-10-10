@@ -6,6 +6,8 @@ use idevice::{IdeviceService, RsdService, ReadWrite, pairing_file::PairingFile,
     build_start_audio_parameters, build_start_video_parameters}};
 use std::{ffi::{CStr, CString, c_char}, sync::{Arc, Mutex, atomic::{AtomicBool, Ordering}}, time::Duration};
 use tokio::{runtime::Runtime, sync::Mutex as AsyncMutex, task::JoinHandle};
+mod diagnostics;
+use diagnostics::service_error;
 
 static LAST_ERROR: Mutex<String> = Mutex::new(String::new());
 fn error(stage: &str, cause: impl std::fmt::Display) { *LAST_ERROR.lock().unwrap() = format!("{stage}: {cause}"); }
@@ -58,7 +60,7 @@ async fn open(provider: Arc<TcpProvider>, media: bool) -> Result<(State,Arc<Atom
         let mut workers = Vec::new();
         let mut display = None;
         if media {
-            let mut client = Display::connect_rsd(&mut adapter, &mut rsd).await.map_err(|_| "screen session: this system does not expose displayservice")?;
+            let mut client = Display::connect_rsd(&mut adapter, &mut rsd).await.map_err(|e| service_error("screen session: displayservice connection failed", &e))?;
             let audio = adapter.bind_udp(0).await.map_err(|_| "screen session: audio receiver failed")?;
             let video = adapter.bind_udp(0).await.map_err(|_| "screen session: video receiver failed")?;
             let receiver = adapter.host_ip().to_string(); let sender = adapter.peer_ip().to_string();
@@ -66,13 +68,14 @@ async fn open(provider: Arc<TcpProvider>, media: bool) -> Result<(State,Arc<Atom
             let info = CallInfoBlob { call_id:0, client_version:1, device_type:"Mac17,7".into(),
                 framework_version:"2205.3.1".into(), os_version:"25F71".into(), device_name:None, audio_device_uid:None };
             let session = uuid::Uuid::new_v4();
-            let audio_offer = build_screen_audio_offer(&uuid::Uuid::new_v4().to_string(), &info).map_err(|_| "screen session: audio offer failed")?;
+            let audio_offer = build_screen_audio_offer(&uuid::Uuid::new_v4().to_string().to_uppercase(), &info).map_err(|e| service_error("screen session: audio offer failed", &e))?;
             client.start_media_stream(build_start_audio_parameters(&receiver,audio.local_port(),&sender,50000,audio_offer,140,session))
-                .await.map_err(|_| "screen session: audio negotiation failed")?;
-            let video_offer = build_screen_video_offer(&uuid::Uuid::new_v4().to_string(),&info,1).map_err(|_| "screen session: video offer failed")?;
-            if client.start_media_stream(build_start_video_parameters(&receiver,video.local_port(),&sender,50001,video_offer,140,1,session)).await.is_err() {
+                .await.map_err(|e| service_error("screen session: audio negotiation failed", &e))?;
+            let ssrc = uuid::Uuid::new_v4().as_u128() as u32;
+            let video_offer = build_screen_video_offer(&uuid::Uuid::new_v4().to_string().to_uppercase(),&info,ssrc).map_err(|e| service_error("screen session: video offer failed", &e))?;
+            if let Err(e) = client.start_media_stream(build_start_video_parameters(&receiver,video.local_port(),&sender,50001,video_offer,140,1,session)).await {
                 let _ = client.stop_media_stream().await;
-                return Err("screen session: video negotiation failed");
+                return Err(service_error("screen session: video negotiation failed", &e));
             }
             // Drain RTP for the whole session instead of accumulating unread video in RAM.
             workers.push(tokio::spawn(async move { while audio.recv().await.is_ok() {} }));
@@ -81,9 +84,9 @@ async fn open(provider: Arc<TcpProvider>, media: bool) -> Result<(State,Arc<Atom
             tokio::time::sleep(Duration::from_millis(300)).await;
         }
         let hid_result = async {
-            let mut hid = Hid::connect_rsd(&mut adapter,&mut rsd).await.map_err(|_| "HID: connection failed")?;
-            let surfaces = hid.list_connected_services().await.map_err(|_| "HID: inventory failed")?;
-            if !surfaces.iter().any(|s| s.service_id == 257) { return Err("HID: mainTouchscreen missing"); }
+            let mut hid = Hid::connect_rsd(&mut adapter,&mut rsd).await.map_err(|e| service_error("HID: connection failed", &e))?;
+            let surfaces = hid.list_connected_services().await.map_err(|e| service_error("HID: inventory failed", &e))?;
+            if !surfaces.iter().any(|s| s.service_id == 257) { return Err("HID: mainTouchscreen missing".into()); }
             Ok(hid)
         }.await;
         match hid_result {

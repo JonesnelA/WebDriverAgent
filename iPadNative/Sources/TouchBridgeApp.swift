@@ -47,12 +47,18 @@ final class AppModel: ObservableObject {
         guard !working && !running && imported else { return }
         guard let ip = lanAddress() else { note("没有检测到 Wi-Fi 地址，请连接无线局域网。"); return }
         working = true; cancelRequested = false; closing = false; invite = ""
-        note("正在连接自身开发服务：LocalDevVPN → CoreDevice → 屏幕会话 → HID。")
+        note(screenSession ? "正在连接自身开发服务：LocalDevVPN → CoreDevice → 屏幕会话 → HID。" :
+             "正在连接自身开发服务：LocalDevVPN → CoreDevice → HID（已跳过屏幕会话）。")
         let selectedOrientation = UInt32(orientation)
         engine.open(path: pairURL.path, media: screenSession) { [weak self] error in
             guard let self = self else { return }
             if self.cancelRequested { self.engine.close { self.finishStop() }; return }
-            if let error = error { self.working = false; self.note(error); self.endBackground(); return }
+            if let error = error {
+                self.working = false
+                self.note(error.hasPrefix("setup: screen session:") ?
+                          error + "\n可以关闭“同时建立屏幕会话”测试 HID 连通性；连接成功仍需观察实际触控。" : error)
+                self.endBackground(); return
+            }
             let server = LANServer(engine: self.engine, orientation: selectedOrientation)
             self.server = server
             server.report = { [weak self] text in self?.note(text) }
@@ -105,7 +111,7 @@ final class AppModel: ObservableObject {
         WindowGroup {
             NavigationStack {
                 Form {
-                    Section("纯 iPad 触控 · 实验版 0.1") {
+                    Section("纯 iPad 触控 · 实验版 0.1.1") {
                         Text("iPad 直接接收主控的按下、移动和松开，日常运行不需要被控端电脑。当前只验证同一 Wi-Fi 下的触控与短时后台运行。")
                         Text(model.status).foregroundStyle(.secondary)
                     }
@@ -119,6 +125,8 @@ final class AppModel: ObservableObject {
                     }
                     Section("连接设置") {
                         Toggle("同时建立屏幕会话（建议开启）", isOn: $model.screenSession)
+                        Text("若启动提示 audio negotiation failed，先关闭此项检查 HID 连通性。部分系统仍需屏幕会话才能接受触控。")
+                            .font(.footnote).foregroundStyle(.secondary)
                         Picker("截图对应方向", selection: $model.orientation) {
                             Text("竖屏").tag(0); Text("横屏：主屏幕键 / 充电口在右").tag(1)
                             Text("横屏：主屏幕键 / 充电口在左").tag(2); Text("倒置竖屏").tag(3)
@@ -140,7 +148,7 @@ final class AppModel: ObservableObject {
                     Section("验证方法") {
                         Text("连接后刷新一次画面。在安全位置按住、拖动、松开，观察 iPad 是否立即跟随。可以先用分屏保留本应用，再尝试切到游戏短时测试。后台长期运行和跨城市联网尚未完成。")
                         Text("发送成功只表示 HID 服务收到了消息；实际生效、悬浮提示和触控延迟都以设备实测为准。")
-                        Button("复制诊断信息") { UIPasteboard.general.string = "TouchBridge Native 0.1 / iPadOS \(UIDevice.current.systemVersion)\n" + model.history.joined(separator: "\n") }
+                        Button("复制诊断信息") { UIPasteboard.general.string = "TouchBridge Native 0.1.1 / iPadOS \(UIDevice.current.systemVersion)\n" + model.history.joined(separator: "\n") }
                         ForEach(Array(model.history.enumerated()), id: \.offset) { _, text in Text(text).font(.footnote) }
                     }
                 }

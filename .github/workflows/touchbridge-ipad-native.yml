@@ -22,7 +22,7 @@ jobs:
         run: |
           swiftc iPadNative/Sources/LANServer.swift iPadNative/Tests/main.swift -o "$RUNNER_TEMP/touchbridge-transport-test"
           python3 iPadNative/Tests/test_transport.py "$RUNNER_TEMP/touchbridge-transport-test"
-      - name: Test native coordinate validation
+      - name: Test native coordinates and safe service diagnostics
         working-directory: iPadNative/Rust
         run: cargo test --locked --lib
       - name: Build native iPad core
@@ -47,10 +47,10 @@ jobs:
           cp Rust/Cargo.lock build/package/
           printf '%s\n' "$GITHUB_SHA" > build/package/source-commit.txt
           cd build/package
-          zip -qr TouchBridge-iPad实验版-0.1-unsigned.ipa Payload
+          zip -qr TouchBridge-iPad实验版-0.1.1-unsigned.ipa Payload
           rm -rf Payload
       - uses: actions/upload-artifact@v4
         with:
-          name: TouchBridge-iPad-Native-0.1
+          name: TouchBridge-iPad-Native-0.1.1
           path: iPadNative/build/package/
           retention-days: 14
