@@ -4,6 +4,7 @@ import hashlib
 import hmac
 import json
 import socket
+import statistics
 import struct
 import subprocess
 import sys
@@ -41,6 +42,7 @@ try:
     def connect(**fields):
         sock = socket.create_connection(("127.0.0.1", 8798), timeout=5)
         sock.settimeout(5)
+        sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
         challenge = recv(sock)
         assert challenge["type"] == "auth_challenge" and len(challenge["nonce"]) == 64
         proof = hmac.new(key, (challenge["nonce"]+"|controller|测试").encode(), hashlib.sha256).hexdigest()
@@ -58,6 +60,19 @@ try:
     assert reply is None; other.close()
     media, reply = connect(channel="media", parent_id=welcome["client_id"], media_key=welcome["media_key"])
     assert reply == {"type": "welcome", "channel": "media"}
+
+    # The Windows client sends these two small requests consecutively. The second
+    # reply must not acquire a delayed-ACK wait behind the first on a local link.
+    probe_gaps = []
+    for index in range(5):
+        send(control, dict(type="ping", sent_at=index))
+        send(control, dict(type="latency_probe", sent_at=index, probe_id="paired"))
+        assert recv(control) == dict(type="pong", sent_at=index)
+        first = time.monotonic()
+        assert recv(control) == dict(type="latency_result", sent_at=index, probe_id="paired")
+        probe_gaps.append(time.monotonic() - first)
+        time.sleep(.05)
+    assert statistics.median(probe_gaps) < .025, f"small replies buffered: {probe_gaps}"
 
     def touch(phase, gesture="gesture", seq=1, **fields):
         message = dict(type="touch", phase=phase, gesture_id=gesture, seq=seq, sent_at=123.5, x=.2, y=.3)
@@ -88,7 +103,8 @@ try:
     assert touch("down", gesture="new-session")["ok"]
     assert touch("cancel", gesture="new-session", seq=2)["ok"]
     control.close()
-    print("PASS: invitation, HMAC, fragmented frames, exclusive controller, media binding, input ordering, screenshot separation, timeout and disconnect cleanup")
+    print("PASS: invitation, HMAC, fragmented frames, exclusive controller, media binding, consecutive small replies, input ordering, screenshot separation, timeout and disconnect cleanup")
+    print(f"Local paired-probe median reply gap: {statistics.median(probe_gaps)*1000:.2f} ms (not physical iPad latency)")
 finally:
     process.terminate()
     process.wait(timeout=5)

@@ -61,7 +61,11 @@ final class LANServer {
     func start(ip: String, completion: @escaping (String?, String?) -> Void) {
         queue.async {
             do {
-                let parameters = NWParameters.tcp
+                // Small touch acknowledgements and consecutive probes must not wait
+                // behind an unacknowledged packet for Nagle/delayed-ACK coalescing.
+                let tcp = NWProtocolTCP.Options()
+                tcp.noDelay = true
+                let parameters = NWParameters(tls: nil, tcp: tcp)
                 parameters.requiredLocalEndpoint = .hostPort(host: NWEndpoint.Host(ip), port: 8798)
                 let listener = try NWListener(using: parameters)
                 self.listener = listener
