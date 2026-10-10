@@ -1,0 +1,17 @@
+[package]
+name = "touchbridge_ipad"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+crate-type = ["staticlib", "rlib"]
+
+[dependencies]
+idevice = { git = "https://github.com/jkcoxson/idevice", rev = "3854a5df4a5a6dee71ffce4d8befc2ea356a8065", default-features = false, features = ["ring", "tcp", "core_device_proxy", "tunnel_tcp_stack", "rsd", "heartbeat", "display_stream", "dvt"] }
+tokio = { version = "1", features = ["rt-multi-thread", "net", "time", "sync", "macros"] }
+uuid = { version = "1", features = ["v4"] }
+
+[profile.release]
+opt-level = "s"
+panic = "abort"
+

@@ -1,0 +1,8 @@
+Rust/target/
+TouchBridgeNative.xcodeproj/
+Info.plist
+build/
+*.ipa
+*.mobiledevicepairing
+*.pem
+pairing.plist

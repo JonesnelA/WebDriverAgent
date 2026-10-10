@@ -1,0 +1,51 @@
+name: TouchBridge pure iPad experiment
+on:
+  workflow_dispatch:
+  push:
+    branches: [codex/touchbridge-ipad-native]
+    paths: ['iPadNative/**', '.github/workflows/touchbridge-ipad-native.yml']
+permissions:
+  contents: read
+jobs:
+  build:
+    runs-on: macos-15
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+      - uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: '16.4'
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-apple-ios
+      - name: Test native coordinate validation
+        working-directory: iPadNative/Rust
+        run: cargo test --lib
+      - name: Build native iPad core
+        working-directory: iPadNative/Rust
+        run: cargo build --release --target aarch64-apple-ios
+      - name: Collect dependency notices
+        run: python3 iPadNative/collect_licenses.py
+      - name: Generate and build unsigned iPad app
+        working-directory: iPadNative
+        run: |
+          command -v xcodegen || brew install xcodegen
+          xcodegen generate
+          xcodebuild -project TouchBridgeNative.xcodeproj -scheme TouchBridgeNative -configuration Release -destination 'generic/platform=iOS' -derivedDataPath build CODE_SIGNING_ALLOWED=NO build
+      - name: Package unsigned IPA
+        working-directory: iPadNative
+        run: |
+          mkdir -p build/package/Payload
+          cp -R build/Build/Products/Release-iphoneos/TouchBridgeNative.app build/package/Payload/
+          cp README.md build/package/使用说明.md
+          cp ThirdPartyNotices.txt build/package/
+          cp Rust/Cargo.lock build/package/
+          printf '%s\n' "$GITHUB_SHA" > build/package/source-commit.txt
+          cd build/package
+          zip -qr TouchBridge-iPad实验版-0.1-unsigned.ipa Payload
+          rm -rf Payload
+      - uses: actions/upload-artifact@v4
+        with:
+          name: TouchBridge-iPad-Native-0.1
+          path: iPadNative/build/package/
+          retention-days: 14
