@@ -41,6 +41,7 @@ jobs:
         run: |
           mkdir -p build/package/Payload
           cp -R build/Build/Products/Release-iphoneos/TouchBridgeNative.app build/package/Payload/
+          test -s build/package/Payload/TouchBridgeNative.app/ThirdPartyNotices.txt
           cp README.md build/package/使用说明.md
           cp ThirdPartyNotices.txt build/package/
           cp Rust/Cargo.lock build/package/

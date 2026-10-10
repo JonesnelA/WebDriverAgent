@@ -14,8 +14,8 @@ targets:
     platform: iOS
     sources:
       - Sources
-    resources:
-      - ThirdPartyNotices.txt
+      - path: ThirdPartyNotices.txt
+        buildPhase: resources
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.touchbridge.ipad.native
