@@ -29,4 +29,4 @@ SwiftUI / Network / CryptoKit 接收局域网命令；Rust 静态库通过 MIT �
 
 不使用越狱、不复制 StikDebug 的 AGPL 代码、不包含个人配对记录、签名证书或设备截图。第三方许可位于应用内 `ThirdPartyNotices.txt`。
 
-GitHub Actions 在 macOS / Xcode 16.4 上运行 Rust 测试、编译 arm64 iPad 静态库、编译 Swift 应用并打包未签名 IPA。最低部署版本 iPadOS 17.4，当前目标实测设备为 iPadOS 26.3.1。云端编译通过并不代表真实 HID 权限和后台能力通过。
+GitHub Actions 在 macOS / Xcode 16.4 上运行 Rust 坐标测试、编译真实 Swift TCP 接收器并用模拟触控执行端测试认证、分包、独占主控、画面连接、连续触控、截图与输入并行、超时和断线清理，再编译 arm64 iPad 静态库与 Swift 应用并打包未签名 IPA。依赖版本由 Cargo.lock 固定。最低部署版本 iPadOS 17.4，待实测设备为 iPadOS 26.3.1。云端编译和模拟执行端测试通过并不代表真实 HID 权限、实际释放行为和后台能力通过。

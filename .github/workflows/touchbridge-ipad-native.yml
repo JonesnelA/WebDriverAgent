@@ -24,10 +24,10 @@ jobs:
           python3 iPadNative/Tests/test_transport.py "$RUNNER_TEMP/touchbridge-transport-test"
       - name: Test native coordinate validation
         working-directory: iPadNative/Rust
-        run: cargo test --lib
+        run: cargo test --locked --lib
       - name: Build native iPad core
         working-directory: iPadNative/Rust
-        run: cargo build --release --target aarch64-apple-ios
+        run: cargo build --locked --release --target aarch64-apple-ios
       - name: Collect dependency notices
         run: python3 iPadNative/collect_licenses.py
       - name: Generate and build unsigned iPad app
